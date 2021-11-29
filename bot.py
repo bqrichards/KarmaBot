@@ -25,7 +25,6 @@ def ranking_sorter(username_karma_map):
 
 def record_ranking(guild: int, user: int, upvotes: int, downvotes: int):
 	""" Record this guild, user, and relative upvote/downvote """
-
 	# Check if guild exists
 	if guild not in ranking_map:
 		ranking_map[guild] = dict()
@@ -54,6 +53,11 @@ def insert_message_into_ranking(message):
 	record_ranking(guild, user, upvotes, downvotes)
 
 
+def get_karma_for_user(guild: int, user: int):
+	""" Get the karma of a user in a guild """
+	return ranking_map[guild][user]
+
+
 def has_karma_reaction(message):
 	""" Returns if this message has any karma reactions """
 	return any(reaction.emoji in KARMA_REACTIONS for reaction in message.reactions)
@@ -64,6 +68,7 @@ async def scan_for_karma():
 	global ranking_map
 	ranking_map = dict()
 	print('Scanning...')
+
 	for channel in client.get_all_channels():
 		if type(channel) != discord.channel.TextChannel:
 			continue
@@ -71,6 +76,15 @@ async def scan_for_karma():
 		async for msg in channel.history(limit=1000):
 			if has_karma_reaction(msg):
 				insert_message_into_ranking(msg)
+
+	print('Done scanning')
+
+
+def format_karma_for_display(karma):
+	""" Formats karma for display with total, upvotes, and downvotes """
+	upvote_count, downvote_count = karma
+	total_karma = upvote_count - downvote_count
+	return f'{total_karma} ({UPVOTE} {upvote_count}, {DOWNVOTE} {downvote_count})'
 
 
 async def format_leaderboard(guild):
@@ -81,9 +95,8 @@ async def format_leaderboard(guild):
 	for user_id, karma in data:
 		user = await client.fetch_user(user_id)
 		username = user.display_name if user is not None else '<unknown>'
-		upvote_count, downvote_count = karma
-		total_karma = upvote_count - downvote_count
-		data_formatted.append(f'{username}: {total_karma} ({UPVOTE}{upvote_count}, {DOWNVOTE}{downvote_count})')
+		karma_display = format_karma_for_display(karma)
+		data_formatted.append(f'{username}: {karma_display}')
 
 	return '\n'.join(data_formatted)
 
@@ -100,7 +113,12 @@ async def on_message(message):
 		leaderboard = await format_leaderboard(message.guild.id)
 		channel = client.get_channel(message.channel.id)
 		await channel.send(leaderboard)
-		return
+	elif message.content == '!k karma':
+		guild = message.guild.id
+		user = message.author.id
+		karma = get_karma_for_user(guild, user)
+		reply = format_karma_for_display(karma)
+		await message.reply(reply)
 
 
 client.run(TOKEN)
