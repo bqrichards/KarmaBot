@@ -1,5 +1,6 @@
 import os
 import discord
+from discord.ext import commands
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -10,8 +11,7 @@ DOWNVOTE = '⬇️'
 KARMA_REACTIONS = [UPVOTE, DOWNVOTE]
 LEADERBOARD_RETURN_LIMIT = 10
 
-client = discord.Client()
-
+bot = commands.Bot(command_prefix='!')
 
 # guild_id -> [user_id: (upvotes, downvotes)]
 ranking_map = dict()
@@ -69,7 +69,7 @@ async def scan_for_karma():
 	ranking_map = dict()
 	print('Scanning...')
 
-	for channel in client.get_all_channels():
+	for channel in bot.get_all_channels():
 		if type(channel) != discord.channel.TextChannel:
 			continue
 
@@ -93,7 +93,7 @@ async def format_leaderboard(guild):
 	data = sorted(ranking_map[guild].items(), key=ranking_sorter)[:LEADERBOARD_RETURN_LIMIT]
 	data_formatted = []
 	for user_id, karma in data:
-		user = await client.fetch_user(user_id)
+		user = await bot.fetch_user(user_id)
 		username = user.display_name if user is not None else '<unknown>'
 		karma_display = format_karma_for_display(karma)
 		data_formatted.append(f'{username}: {karma_display}')
@@ -101,24 +101,25 @@ async def format_leaderboard(guild):
 	return '\n'.join(data_formatted)
 
 
-@client.event
+@bot.event
 async def on_ready():
-	print(f'{client.user} has connected to Discord!')
+	print(f'{bot.user} has connected to Discord!')
 	await scan_for_karma()
 
 
-@client.event
-async def on_message(message):
-	if message.content == '!k leaderboard':
-		leaderboard = await format_leaderboard(message.guild.id)
-		channel = client.get_channel(message.channel.id)
-		await channel.send(leaderboard)
-	elif message.content == '!k karma':
-		guild = message.guild.id
-		user = message.author.id
-		karma = get_karma_for_user(guild, user)
-		reply = format_karma_for_display(karma)
-		await message.reply(reply)
+@bot.command()
+async def leaderboard(ctx):
+	leaderboard = await format_leaderboard(ctx.guild.id)
+	await ctx.send(leaderboard)
 
 
-client.run(TOKEN)
+@bot.command()
+async def karma(ctx, target_user: discord.Member = None):
+	guild = ctx.guild.id
+	user = ctx.author.id if target_user is None else target_user.id
+	karma = get_karma_for_user(guild, user)
+	reply = format_karma_for_display(karma)
+	await ctx.reply(reply)
+
+
+bot.run(TOKEN)
