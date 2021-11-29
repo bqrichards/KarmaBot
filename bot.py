@@ -77,7 +77,14 @@ async def format_leaderboard(guild):
 	""" Returns a karma leaderboard for a given guild """
 	global ranking_map
 	data = sorted(ranking_map[guild].items(), key=ranking_sorter)[:LEADERBOARD_RETURN_LIMIT]
-	data_formatted = (f'{user_id}: {karma[0] - karma[1]} ({UPVOTE}{karma[0]}, {DOWNVOTE}{karma[1]})' for user_id, karma in data)
+	data_formatted = []
+	for user_id, karma in data:
+		user = await client.fetch_user(user_id)
+		username = user.display_name if user is not None else '<unknown>'
+		upvote_count, downvote_count = karma
+		total_karma = upvote_count - downvote_count
+		data_formatted.append(f'{username}: {total_karma} ({UPVOTE}{upvote_count}, {DOWNVOTE}{downvote_count})')
+
 	return '\n'.join(data_formatted)
 
 
