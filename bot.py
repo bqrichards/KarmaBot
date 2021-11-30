@@ -2,7 +2,7 @@ import os
 import discord
 from discord.ext import commands
 from dotenv import load_dotenv
-from config import KarmaBotConfig, load_config
+from config import KarmaBotConfig, load_config, change_config
 
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
@@ -124,5 +124,19 @@ async def karma(ctx, target_user: discord.Member = None):
 	karma = get_karma_for_user(guild, user)
 	reply = format_karma_for_display(karma)
 	await ctx.reply(reply)
+
+
+@bot.command()
+async def config(ctx, target_key: str = None, target_value: str = None):
+	if target_value is None or target_value is None:
+		await ctx.reply(f'Usage: !config <target_key> <target_value>\nCurrent config:\n```{bot.karma_config.get_formatted_config()}```')
+		return
+
+	change_attempt = change_config(bot.karma_config, target_key, target_value)
+	if change_attempt.success:
+		await ctx.reply('Changed')
+	else:
+		await ctx.reply(f'Error! {change_attempt.errorMessage}')
+
 
 bot.run(TOKEN)
