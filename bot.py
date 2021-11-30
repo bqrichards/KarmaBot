@@ -2,6 +2,7 @@ import os
 import discord
 from discord.ext import commands
 from dotenv import load_dotenv
+from config import KarmaBotConfig, load_config
 
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
@@ -9,9 +10,13 @@ TOKEN = os.getenv('DISCORD_TOKEN')
 UPVOTE = '⬆️'
 DOWNVOTE = '⬇️'
 KARMA_REACTIONS = [UPVOTE, DOWNVOTE]
-LEADERBOARD_RETURN_LIMIT = 10
 
-bot = commands.Bot(command_prefix='!')
+
+class KarmaBot(commands.Bot):
+	karma_config: KarmaBotConfig
+
+
+bot = KarmaBot(command_prefix='!')
 
 # guild_id -> [user_id: (upvotes, downvotes)]
 ranking_map = dict()
@@ -65,8 +70,6 @@ def has_karma_reaction(message):
 
 async def scan_for_karma():
 	""" Scan all guilds and channels for karma """
-	global ranking_map
-	ranking_map = dict()
 	print('Scanning...')
 
 	for channel in bot.get_all_channels():
@@ -90,7 +93,7 @@ def format_karma_for_display(karma):
 async def format_leaderboard(guild):
 	""" Returns a karma leaderboard for a given guild """
 	global ranking_map
-	data = sorted(ranking_map[guild].items(), key=ranking_sorter)[:LEADERBOARD_RETURN_LIMIT]
+	data = sorted(ranking_map[guild].items(), key=ranking_sorter)[:bot.karma_config.leaderboard_return_limit]
 	data_formatted = []
 	for user_id, karma in data:
 		user = await bot.fetch_user(user_id)
@@ -104,6 +107,7 @@ async def format_leaderboard(guild):
 @bot.event
 async def on_ready():
 	print(f'{bot.user} has connected to Discord!')
+	bot.karma_config = load_config()
 	await scan_for_karma()
 
 
@@ -120,6 +124,5 @@ async def karma(ctx, target_user: discord.Member = None):
 	karma = get_karma_for_user(guild, user)
 	reply = format_karma_for_display(karma)
 	await ctx.reply(reply)
-
 
 bot.run(TOKEN)
