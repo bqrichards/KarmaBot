@@ -1,1 +1,1 @@
-leaderboard_return_limit=5
+leaderboard_return_limit=7
