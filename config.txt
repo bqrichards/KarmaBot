@@ -1,1 +1,3 @@
-leaderboard_return_limit=7
+leaderboard_return_limit=10
+upvote_reaction=:upvote:
+downvote_reaction=⬇️

@@ -1,6 +1,7 @@
 import os
 from dataclasses import dataclass
 from typing import Optional
+from discord import Emoji
 
 CONFIG_FILE_NAME = 'config.txt'
 
@@ -8,9 +9,32 @@ CONFIG_FILE_NAME = 'config.txt'
 @dataclass
 class KarmaBotConfig:
 	leaderboard_return_limit: int = 10
+	upvote_reaction: str = '⬆️'
+	downvote_reaction: str = '⬇️'
 
 	def get_formatted_config(self):
 		return '\n'.join(f'{key}={value}' for key, value in self.__dict__.items())
+
+	def is_karma_reaction(self, emoji):
+		if isinstance(emoji, Emoji):
+			return f':{emoji.name}:' in self._karma_reactions()
+
+		return emoji in self._karma_reactions()
+
+	def is_upvote(self, emoji):
+		if isinstance(emoji, Emoji):
+			return f':{emoji.name}:' == self.upvote_reaction
+
+		return emoji == self.upvote_reaction
+
+	def is_downvote(self, emoji):
+		if isinstance(emoji, Emoji):
+			return f':{emoji.name}:' == self.downvote_reaction
+
+		return emoji == self.downvote_reaction
+
+	def _karma_reactions(self):
+		return [self.upvote_reaction, self.downvote_reaction]
 
 
 @dataclass
@@ -63,6 +87,7 @@ def read_config() -> KarmaBotConfig:
 				continue
 
 			key, value = key_value
+			value = value.strip()
 			attempt = _attempt_config_change(config, key, value)
 			if not attempt.success:
 				print(attempt.errorMessage)
@@ -78,6 +103,9 @@ def load_config() -> KarmaBotConfig:
 
 	# Read config
 	config = read_config()
+
+	# Write in case of default values
+	write_config(config)
 
 	return config
 
