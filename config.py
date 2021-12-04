@@ -1,16 +1,76 @@
+from __future__ import annotations
+
 import os
 from dataclasses import dataclass
 from typing import Optional
 
+from discord.ext import commands
+from discord import Emoji
+from emoji import UNICODE_EMOJI_ENGLISH
+
 CONFIG_FILE_NAME = 'config.txt'
+CONFIG_SAVE_IGNORE_KEYS = ['upvote_emoji', 'downvote_emoji']
 
 
 @dataclass
 class KarmaBotConfig:
 	leaderboard_return_limit: int = 10
+	upvote_reaction: str = '⬆️'
+	downvote_reaction: str = '⬇️'
+	upvote_emoji: Optional[Emoji] = None
+	downvote_emoji: Optional[Emoji] = None
+
+	def load_emojis(self, bot: commands.Bot):
+		"""
+		Load emojis from reaction names
+		:param bot: the KarmaBot discord bot
+		"""
+		if self.upvote_reaction not in UNICODE_EMOJI_ENGLISH:
+			results = list(filter(lambda x: x.name == self.upvote_reaction, bot.emojis))
+			if len(results) > 0:
+				self.upvote_emoji = results[0]
+		if self.downvote_reaction not in UNICODE_EMOJI_ENGLISH:
+			results = list(filter(lambda x: x.name == self.downvote_reaction, bot.emojis))
+			if len(results) > 0:
+				self.downvote_emoji = results[0]
 
 	def get_formatted_config(self):
-		return '\n'.join(f'{key}={value}' for key, value in self.__dict__.items())
+		all_members = self.__dict__.items()
+		writable_members = list(filter(lambda x: x[0] not in CONFIG_SAVE_IGNORE_KEYS, all_members))
+		return '\n'.join(f'{key}={value}' for key, value in writable_members)
+
+	def is_karma_reaction(self, emoji):
+		if isinstance(emoji, Emoji):
+			return emoji.name in self._karma_reactions()
+
+		return emoji in self._karma_reactions()
+
+	def is_upvote(self, emoji):
+		if isinstance(emoji, Emoji):
+			return emoji.name == self.upvote_reaction
+
+		return emoji == self.upvote_reaction
+
+	def is_downvote(self, emoji):
+		if isinstance(emoji, Emoji):
+			return emoji.name == self.downvote_reaction
+
+		return emoji == self.downvote_reaction
+
+	def get_upvote_display(self):
+		if self.upvote_emoji is not None:
+			return f'<:{self.upvote_emoji.name}:{self.upvote_emoji.id}>'
+
+		return self.upvote_reaction
+
+	def get_downvote_display(self):
+		if self.downvote_emoji is not None:
+			return f'<:{self.downvote_emoji.name}:{self.downvote_emoji.id}>'
+
+		return self.downvote_reaction
+
+	def _karma_reactions(self):
+		return [self.upvote_reaction, self.downvote_reaction]
 
 
 @dataclass
@@ -37,7 +97,7 @@ def _attempt_config_change(config, key, value, write_change=False) -> ConfigChan
 	if key not in valid_keys:
 		return ConfigChangeAttempt(False, f'Invalid config file key: {key}')
 
-	if config_annotations[key] == int:
+	if config_annotations[key] == 'int':
 		try:
 			value = int(value)
 		except ValueError:
@@ -63,6 +123,7 @@ def read_config() -> KarmaBotConfig:
 				continue
 
 			key, value = key_value
+			value = value.strip()
 			attempt = _attempt_config_change(config, key, value)
 			if not attempt.success:
 				print(attempt.errorMessage)
@@ -78,6 +139,9 @@ def load_config() -> KarmaBotConfig:
 
 	# Read config
 	config = read_config()
+
+	# Write in case of default values
+	write_config(config)
 
 	return config
 

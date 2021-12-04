@@ -6,9 +6,11 @@ authors = ["Brandon Richards <bqrichards@icloud.com>"]
 license = "MIT"
 
 [tool.poetry.dependencies]
-python = "^3.8"
+python = "^3.9"
 "discord.py" = "^1.7.3"
 python-dotenv = "^0.19.2"
+discord = "^1.7.3"
+emoji = "^1.6.1"
 
 [tool.poetry.dev-dependencies]
 

@@ -3,13 +3,10 @@ import discord
 from discord.ext import commands
 from dotenv import load_dotenv
 from config import KarmaBotConfig, load_config, change_config
+from karma import format_karma_for_display
 
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
-
-UPVOTE = '⬆️'
-DOWNVOTE = '⬇️'
-KARMA_REACTIONS = [UPVOTE, DOWNVOTE]
 
 
 class KarmaBot(commands.Bot):
@@ -25,7 +22,7 @@ ranking_map = dict()
 def ranking_sorter(username_karma_map):
 	""" Sorter for (username_id, (upvotes, downvote)) """
 	upvotes, downvotes = username_karma_map[1]
-	return upvotes - downvotes
+	return downvotes - upvotes
 
 
 def record_ranking(guild: int, user: int, upvotes: int, downvotes: int):
@@ -50,9 +47,9 @@ def insert_message_into_ranking(message):
 	upvotes = 0
 	downvotes = 0
 	for reaction in message.reactions:
-		if reaction.emoji == UPVOTE:
+		if bot.karma_config.is_upvote(reaction.emoji):
 			upvotes += 1
-		elif reaction.emoji == DOWNVOTE:
+		elif bot.karma_config.is_downvote(reaction.emoji):
 			downvotes += 1
 
 	record_ranking(guild, user, upvotes, downvotes)
@@ -65,7 +62,7 @@ def get_karma_for_user(guild: int, user: int):
 
 def has_karma_reaction(message):
 	""" Returns if this message has any karma reactions """
-	return any(reaction.emoji in KARMA_REACTIONS for reaction in message.reactions)
+	return any(bot.karma_config.is_karma_reaction(reaction.emoji) for reaction in message.reactions)
 
 
 async def scan_for_karma():
@@ -83,22 +80,18 @@ async def scan_for_karma():
 	print('Done scanning')
 
 
-def format_karma_for_display(karma):
-	""" Formats karma for display with total, upvotes, and downvotes """
-	upvote_count, downvote_count = karma
-	total_karma = upvote_count - downvote_count
-	return f'{total_karma} ({UPVOTE} {upvote_count}, {DOWNVOTE} {downvote_count})'
-
-
 async def format_leaderboard(guild):
 	""" Returns a karma leaderboard for a given guild """
 	global ranking_map
+	if guild not in ranking_map:
+		return 'No data for this guild yet.'
+
 	data = sorted(ranking_map[guild].items(), key=ranking_sorter)[:bot.karma_config.leaderboard_return_limit]
 	data_formatted = []
 	for user_id, karma in data:
 		user = await bot.fetch_user(user_id)
 		username = user.display_name if user is not None else '<unknown>'
-		karma_display = format_karma_for_display(karma)
+		karma_display = format_karma_for_display(karma, bot.karma_config)
 		data_formatted.append(f'{username}: {karma_display}')
 
 	return '\n'.join(data_formatted)
@@ -108,6 +101,7 @@ async def format_leaderboard(guild):
 async def on_ready():
 	print(f'{bot.user} has connected to Discord!')
 	bot.karma_config = load_config()
+	bot.karma_config.load_emojis(bot)
 	await scan_for_karma()
 
 
@@ -122,7 +116,7 @@ async def karma(ctx, target_user: discord.Member = None):
 	guild = ctx.guild.id
 	user = ctx.author.id if target_user is None else target_user.id
 	karma = get_karma_for_user(guild, user)
-	reply = format_karma_for_display(karma)
+	reply = format_karma_for_display(karma, bot.karma_config)
 	await ctx.reply(reply)
 
 
