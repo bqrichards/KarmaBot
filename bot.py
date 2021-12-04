@@ -83,12 +83,15 @@ async def scan_for_karma():
 async def format_leaderboard(guild):
 	""" Returns a karma leaderboard for a given guild """
 	global ranking_map
+	if guild not in ranking_map:
+		return 'No data for this guild yet.'
+
 	data = sorted(ranking_map[guild].items(), key=ranking_sorter)[:bot.karma_config.leaderboard_return_limit]
 	data_formatted = []
 	for user_id, karma in data:
 		user = await bot.fetch_user(user_id)
 		username = user.display_name if user is not None else '<unknown>'
-		karma_display = format_karma_for_display(karma, bot.karma_config.upvote_reaction, bot.karma_config.downvote_reaction)
+		karma_display = format_karma_for_display(karma, bot.karma_config)
 		data_formatted.append(f'{username}: {karma_display}')
 
 	return '\n'.join(data_formatted)
@@ -98,6 +101,7 @@ async def format_leaderboard(guild):
 async def on_ready():
 	print(f'{bot.user} has connected to Discord!')
 	bot.karma_config = load_config()
+	bot.karma_config.load_emojis(bot)
 	await scan_for_karma()
 
 
@@ -112,7 +116,7 @@ async def karma(ctx, target_user: discord.Member = None):
 	guild = ctx.guild.id
 	user = ctx.author.id if target_user is None else target_user.id
 	karma = get_karma_for_user(guild, user)
-	reply = format_karma_for_display(karma)
+	reply = format_karma_for_display(karma, bot.karma_config)
 	await ctx.reply(reply)
 
 
