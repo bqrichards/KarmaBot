@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from typing import Optional
 
 from discord.ext import commands
-from discord import Emoji
+from discord import Emoji, PartialEmoji
 from emoji import UNICODE_EMOJI_ENGLISH
 
 CONFIG_FILE_NAME = 'config.txt'
@@ -25,6 +25,14 @@ class KarmaBotConfig:
 		Load emojis from reaction names
 		:param bot: the KarmaBot discord bot
 		"""
+
+		"""
+		# TODO - change to
+		emoji = discord.utils.get(guild.emojis, name='LUL')
+		if emoji:
+			...
+		"""
+
 		if self.upvote_reaction not in UNICODE_EMOJI_ENGLISH:
 			results = list(filter(lambda x: x.name == self.upvote_reaction, bot.emojis))
 			if len(results) > 0:
@@ -39,20 +47,20 @@ class KarmaBotConfig:
 		writable_members = list(filter(lambda x: x[0] not in CONFIG_SAVE_IGNORE_KEYS, all_members))
 		return '\n'.join(f'{key}={value}' for key, value in writable_members)
 
-	def is_karma_reaction(self, emoji):
-		if isinstance(emoji, Emoji):
+	def is_karma_reaction(self, emoji: Emoji | PartialEmoji | str):
+		if isinstance(emoji, Emoji) or isinstance(emoji, PartialEmoji):
 			return emoji.name in self._karma_reactions()
 
 		return emoji in self._karma_reactions()
 
-	def is_upvote(self, emoji):
-		if isinstance(emoji, Emoji):
+	def is_upvote(self, emoji: Emoji | PartialEmoji | str):
+		if isinstance(emoji, Emoji) or isinstance(emoji, PartialEmoji):
 			return emoji.name == self.upvote_reaction
 
 		return emoji == self.upvote_reaction
 
-	def is_downvote(self, emoji):
-		if isinstance(emoji, Emoji):
+	def is_downvote(self, emoji: Emoji | PartialEmoji | str):
+		if isinstance(emoji, Emoji) or isinstance(emoji, PartialEmoji):
 			return emoji.name == self.downvote_reaction
 
 		return emoji == self.downvote_reaction
