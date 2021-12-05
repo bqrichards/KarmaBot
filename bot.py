@@ -3,7 +3,7 @@ import discord
 from discord.ext import commands
 from dotenv import load_dotenv
 from config import KarmaBotConfig, load_config, change_config
-from karma import format_karma_for_display
+from karma import KarmaMap, format_karma_for_display, has_karma_reaction
 
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
@@ -14,55 +14,18 @@ class KarmaBot(commands.Bot):
 
 
 bot = KarmaBot(command_prefix='!')
-
-# guild_id -> [user_id: (upvotes, downvotes)]
-ranking_map = dict()
+karma_map: KarmaMap
 
 
-def ranking_sorter(username_karma_map):
-	""" Sorter for (username_id, (upvotes, downvote)) """
-	upvotes, downvotes = username_karma_map[1]
-	return downvotes - upvotes
-
-
-def record_ranking(guild: int, user: int, upvotes: int, downvotes: int):
-	""" Record this guild, user, and relative upvote/downvote """
-	# Check if guild exists
-	if guild not in ranking_map:
-		ranking_map[guild] = dict()
-
-	# Check if user exists
-	if user not in ranking_map[guild]:
-		ranking_map[guild][user] = (0, 0)
-
-	# Update karma
-	old_upvotes, old_downvotes = ranking_map[guild][user]
-	ranking_map[guild][user] = (old_upvotes + upvotes, old_downvotes + downvotes)
-
-
-def insert_message_into_ranking(message):
-	""" Given a message with at least one karma reaction, insert into karma record """
-	guild = message.guild.id
-	user = message.author.id
-	upvotes = 0
-	downvotes = 0
-	for reaction in message.reactions:
-		if bot.karma_config.is_upvote(reaction.emoji):
-			upvotes += 1
-		elif bot.karma_config.is_downvote(reaction.emoji):
-			downvotes += 1
-
-	record_ranking(guild, user, upvotes, downvotes)
+def insert_reaction_change_into_ranking(payload: discord.RawReactionActionEvent):
+	global karma_map
+	karma_map.modify_message(payload)
 
 
 def get_karma_for_user(guild: int, user: int):
 	""" Get the karma of a user in a guild """
-	return ranking_map[guild][user]
-
-
-def has_karma_reaction(message):
-	""" Returns if this message has any karma reactions """
-	return any(bot.karma_config.is_karma_reaction(reaction.emoji) for reaction in message.reactions)
+	global karma_map
+	return karma_map.get_karma_for_user(guild, user)
 
 
 async def scan_for_karma():
@@ -74,27 +37,10 @@ async def scan_for_karma():
 			continue
 
 		async for msg in channel.history(limit=1000):
-			if has_karma_reaction(msg):
-				insert_message_into_ranking(msg)
+			if has_karma_reaction(msg, bot.karma_config):
+				karma_map.add_message(msg)
 
 	print('Done scanning')
-
-
-async def format_leaderboard(guild):
-	""" Returns a karma leaderboard for a given guild """
-	global ranking_map
-	if guild not in ranking_map:
-		return 'No data for this guild yet.'
-
-	data = sorted(ranking_map[guild].items(), key=ranking_sorter)[:bot.karma_config.leaderboard_return_limit]
-	data_formatted = []
-	for user_id, karma in data:
-		user = await bot.fetch_user(user_id)
-		username = user.display_name if user is not None else '<unknown>'
-		karma_display = format_karma_for_display(karma, bot.karma_config)
-		data_formatted.append(f'{username}: {karma_display}')
-
-	return '\n'.join(data_formatted)
 
 
 @bot.event
@@ -102,17 +48,30 @@ async def on_ready():
 	print(f'{bot.user} has connected to Discord!')
 	bot.karma_config = load_config()
 	bot.karma_config.load_emojis(bot)
+	global karma_map
+	karma_map = KarmaMap(bot.karma_config)
 	await scan_for_karma()
+
+
+@bot.event
+async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
+	insert_reaction_change_into_ranking(payload)
+
+
+@bot.event
+async def on_raw_reaction_remove(payload: discord.RawReactionActionEvent):
+	insert_reaction_change_into_ranking(payload)
 
 
 @bot.command()
 async def leaderboard(ctx):
-	leaderboard = await format_leaderboard(ctx.guild.id)
+	leaderboard = await karma_map.get_leaderboard(ctx.guild.id, bot)
 	await ctx.send(leaderboard)
 
 
 @bot.command()
 async def karma(ctx, target_user: discord.Member = None):
+	global karma_map
 	guild = ctx.guild.id
 	user = ctx.author.id if target_user is None else target_user.id
 	karma = get_karma_for_user(guild, user)
