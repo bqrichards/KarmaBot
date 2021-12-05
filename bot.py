@@ -63,18 +63,6 @@ async def on_raw_reaction_remove(payload: discord.RawReactionActionEvent):
 	insert_reaction_change_into_ranking(payload)
 
 
-@bot.event
-async def on_raw_reaction_clear(payload: discord.RawReactionClearEvent):
-	# TODO
-	print(payload)
-
-
-@bot.event
-async def on_raw_reaction_clear_emoji(payload: discord.RawReactionClearEmojiEvent):
-	# TODO
-	print(payload)
-
-
 @bot.command()
 async def leaderboard(ctx):
 	leaderboard = await karma_map.get_leaderboard(ctx.guild.id, bot)

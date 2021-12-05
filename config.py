@@ -4,6 +4,7 @@ import os
 from dataclasses import dataclass
 from typing import Optional
 
+import discord
 from discord.ext import commands
 from discord import Emoji, PartialEmoji
 from emoji import UNICODE_EMOJI_ENGLISH
@@ -26,21 +27,15 @@ class KarmaBotConfig:
 		:param bot: the KarmaBot discord bot
 		"""
 
-		"""
-		# TODO - change to
-		emoji = discord.utils.get(guild.emojis, name='LUL')
-		if emoji:
-			...
-		"""
-
 		if self.upvote_reaction not in UNICODE_EMOJI_ENGLISH:
-			results = list(filter(lambda x: x.name == self.upvote_reaction, bot.emojis))
-			if len(results) > 0:
-				self.upvote_emoji = results[0]
+			result = discord.utils.get(bot.emojis, name=self.upvote_reaction)
+			if result:
+				self.upvote_emoji = result
+
 		if self.downvote_reaction not in UNICODE_EMOJI_ENGLISH:
-			results = list(filter(lambda x: x.name == self.downvote_reaction, bot.emojis))
-			if len(results) > 0:
-				self.downvote_emoji = results[0]
+			result = discord.utils.get(bot.emojis, name=self.downvote_reaction)
+			if result:
+				self.downvote_emoji = result
 
 	def get_formatted_config(self):
 		all_members = self.__dict__.items()
