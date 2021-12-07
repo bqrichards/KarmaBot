@@ -16,6 +16,7 @@ CONFIG_SAVE_IGNORE_KEYS = ['upvote_emoji', 'downvote_emoji']
 @dataclass
 class KarmaBotConfig:
 	leaderboard_return_limit: int = 10
+	scan_history_amount: int = 2000
 	upvote_reaction: str = '⬆️'
 	downvote_reaction: str = '⬇️'
 	upvote_emoji: Optional[Emoji] = None

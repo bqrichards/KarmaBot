@@ -36,7 +36,7 @@ async def scan_for_karma():
 		if type(channel) != discord.channel.TextChannel:
 			continue
 
-		async for msg in channel.history(limit=1000):
+		async for msg in channel.history(limit=bot.karma_config.scan_history_amount):
 			if has_karma_reaction(msg, bot.karma_config):
 				karma_map.add_message(msg)
 

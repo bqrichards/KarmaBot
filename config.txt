@@ -1,3 +1,4 @@
 leaderboard_return_limit=10
+scan_history_amount=2000
 upvote_reaction=⬆️
 downvote_reaction=⬇️
